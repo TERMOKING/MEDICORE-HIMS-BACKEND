@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import Joi from 'joi';
+import { MongooseModule } from '@nestjs/mongoose';
 
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
@@ -15,6 +16,20 @@ import { AppService } from './app.service.js';
           .default('development'),
 
         PORT: Joi.number().port().default(3001),
+        MONGODB_URI: Joi.string()
+          .uri({
+            scheme: ['mongodb', 'mongodb+srv'],
+          })
+          .required(),
+      }),
+    }),
+    MongooseModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        uri: configService.getOrThrow<string>('MONGODB_URI'),
+        serverSelectionTimeoutMS: 5000,
+        retryAttempts: 3,
+        retryDelay: 1000,
       }),
     }),
   ],
