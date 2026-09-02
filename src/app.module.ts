@@ -1,7 +1,16 @@
-import { Module } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
+import {
+  HttpLoggerMiddleware,
+} from './common/middleware/http-logger.middleware.js';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import Joi from 'joi';
 import { MongooseModule } from '@nestjs/mongoose';
+
 
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
@@ -61,4 +70,17 @@ import { AuthModule } from './auth/auth.module.js';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule
+  implements NestModule
+{
+  configure(
+    consumer: MiddlewareConsumer,
+  ): void {
+    consumer
+      .apply(HttpLoggerMiddleware)
+      .forRoutes({
+        path: '{*splat}',
+        method: RequestMethod.ALL,
+      });
+  }
+}
