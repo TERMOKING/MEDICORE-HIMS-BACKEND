@@ -8,6 +8,7 @@ import { AppService } from './app.service.js';
 import { PatientsModule } from './patients/patients.module.js';
 import { DoctorsModule } from './doctors/doctors.module.js';
 import { NursesModule } from './nurses/nurses.module.js';
+import { AppointmentsModule } from './appointments/appointments.module.js';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { NursesModule } from './nurses/nurses.module.js';
     PatientsModule,
     DoctorsModule,
     NursesModule,
+    AppointmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

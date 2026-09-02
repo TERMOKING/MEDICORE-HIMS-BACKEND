@@ -19,5 +19,6 @@ import { DoctorsController } from './doctors.controller.js';
   ],
   providers: [DoctorsService],
   controllers: [DoctorsController],
+  exports: [MongooseModule],
 })
 export class DoctorsModule {}

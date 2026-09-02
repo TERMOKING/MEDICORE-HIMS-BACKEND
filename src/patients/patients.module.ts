@@ -17,5 +17,6 @@ import { Patient, PatientSchema } from './schemas/patient.schema.js';
   ],
   controllers: [PatientsController],
   providers: [PatientsService],
+  exports: [MongooseModule],
 })
 export class PatientsModule {}
