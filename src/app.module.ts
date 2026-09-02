@@ -7,6 +7,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { PatientsModule } from './patients/patients.module.js';
 import { DoctorsModule } from './doctors/doctors.module.js';
+import { NursesModule } from './nurses/nurses.module.js';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { DoctorsModule } from './doctors/doctors.module.js';
     }),
     PatientsModule,
     DoctorsModule,
+    NursesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
