@@ -2,12 +2,17 @@ import {
     BadRequestException,
     ConflictException,
     Injectable,
+    InternalServerErrorException,
     NotFoundException,
 } from '@nestjs/common';
 
-import { InjectModel } from '@nestjs/mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { randomUUID } from 'node:crypto';
-import { Model, Types } from 'mongoose';
+import {
+    Types,
+    type Connection,
+    type Model,
+} from 'mongoose';
 
 import { Doctor } from '../doctors/schemas/doctor.schema.js';
 import { Patient } from '../patients/schemas/patient.schema.js';
@@ -21,6 +26,10 @@ import {
 } from './schemas/appointment.schema.js';
 
 import type { AppointmentStatus } from './constants/appointment.constants.js';
+import {
+    Encounter,
+    type EncounterDocument,
+} from '../encounters/schemas/encounter.schema.js';
 
 type AppointmentListFilter = {
     appointmentNumber?: {
@@ -42,6 +51,13 @@ type AppointmentListFilter = {
 @Injectable()
 export class AppointmentsService {
     constructor(
+
+        @InjectModel(Encounter.name)
+        private readonly encounterModel: Model<EncounterDocument>,
+
+        @InjectConnection()
+        private readonly connection: Connection,
+
         @InjectModel(Appointment.name)
         private readonly appointmentModel: Model<AppointmentDocument>,
 
@@ -52,12 +68,7 @@ export class AppointmentsService {
         private readonly doctorModel: Model<Doctor>,
     ) { }
 
-    private escapeRegex(value: string): string {
-        return value.replace(
-            /[.*+?^${}()|[\]\\]/g,
-            '\\$&',
-        );
-    }
+
     async create(
         createAppointmentDto: CreateAppointmentDto,
     ): Promise<AppointmentDocument> {
@@ -477,6 +488,211 @@ export class AppointmentsService {
 
         return appointment;
     }
+    async startEncounter(
+        id: string,
+    ): Promise<EncounterDocument> {
+        if (!Types.ObjectId.isValid(id)) {
+            throw new BadRequestException(
+                'Invalid appointment ID',
+            );
+        }
+
+        const session =
+            await this.connection.startSession();
+
+        let createdEncounterId:
+            | Types.ObjectId
+            | undefined;
+
+        try {
+            await session.withTransaction(async () => {
+                const appointment =
+                    await this.appointmentModel
+                        .findOne({
+                            _id: id,
+                            status: 'checked_in',
+                            encounterId: null,
+                        })
+                        .session(session)
+                        .exec();
+
+                if (!appointment) {
+                    const existingAppointment =
+                        await this.appointmentModel
+                            .findById(id)
+                            .select('status encounterId')
+                            .session(session)
+                            .lean()
+                            .exec();
+
+                    if (!existingAppointment) {
+                        throw new NotFoundException(
+                            'Appointment not found',
+                        );
+                    }
+
+                    if (existingAppointment.encounterId) {
+                        throw new ConflictException(
+                            'An encounter already exists for this appointment',
+                        );
+                    }
+
+                    throw new ConflictException(
+                        `Only a checked-in appointment can start consultation. Current status: ${existingAppointment.status}`,
+                    );
+                }
+
+                const consultationStartedAt = new Date();
+
+                const waitingStartedAt =
+                    appointment.waitingStartedAt;
+
+                const actualWaitingMinutes =
+                    waitingStartedAt &&
+                        waitingStartedAt.getTime() <=
+                        consultationStartedAt.getTime()
+                        ? Math.max(
+                            0,
+                            Math.floor(
+                                (consultationStartedAt.getTime() -
+                                    waitingStartedAt.getTime()) /
+                                60_000,
+                            ),
+                        )
+                        : 0;
+
+                const encounterType =
+                    appointment.consultationMode ===
+                        'in_person'
+                        ? 'outpatient'
+                        : 'teleconsultation';
+
+                const [encounter] =
+                    await this.encounterModel.create(
+                        [
+                            {
+                                encounterNumber:
+                                    this.generateEncounterNumber(),
+
+                                appointmentId: appointment._id,
+                                patientId: appointment.patientId,
+                                doctorId: appointment.doctorId,
+
+                                departmentId:
+                                    appointment.departmentId,
+
+                                hospitalId: appointment.hospitalId,
+                                branchId: appointment.branchId,
+
+                                encounterType,
+                                status: 'in_progress',
+
+                                chiefComplaint:
+                                    appointment.reasonForVisit,
+
+                                startedAt:
+                                    consultationStartedAt,
+
+                                isLocked: false,
+
+                                statusHistory: [
+                                    {
+                                        toStatus: 'in_progress',
+                                        changedAt:
+                                            consultationStartedAt,
+                                        reason:
+                                            'Doctor started consultation',
+                                    },
+                                ],
+                            },
+                        ],
+                        {
+                            session,
+                        },
+                    );
+
+                appointment.status = 'fulfilled';
+                appointment.encounterId = encounter._id;
+
+                appointment.consultationStartedAt =
+                    consultationStartedAt;
+
+                appointment.waitingEndedAt =
+                    consultationStartedAt;
+
+                appointment.actualWaitingMinutes =
+                    actualWaitingMinutes;
+
+                appointment.statusHistory.push({
+                    fromStatus: 'checked_in',
+                    toStatus: 'fulfilled',
+                    changedAt: consultationStartedAt,
+                    reason:
+                        'Clinical encounter started',
+                });
+
+                await appointment.save({
+                    session,
+                });
+
+                createdEncounterId = encounter._id;
+            });
+        } catch (error: unknown) {
+            const databaseError = error as {
+                code?: number;
+            };
+
+            if (databaseError.code === 11000) {
+                throw new ConflictException(
+                    'An encounter already exists for this appointment',
+                );
+            }
+
+            throw error;
+        } finally {
+            await session.endSession();
+        }
+
+        if (!createdEncounterId) {
+            throw new InternalServerErrorException(
+                'Encounter could not be created',
+            );
+        }
+
+        const encounter =
+            await this.encounterModel
+                .findById(createdEncounterId)
+                .populate({
+                    path: 'patientId',
+                    select:
+                        'fullName preferredName uhid phone gender dateOfBirth',
+                })
+                .populate({
+                    path: 'doctorId',
+                    select:
+                        'fullName specialization departmentName opdRoomNumber',
+                })
+                .populate({
+                    path: 'appointmentId',
+                    select:
+                        'appointmentNumber startAt endAt status actualWaitingMinutes',
+                })
+                .exec();
+
+        if (!encounter) {
+            throw new InternalServerErrorException(
+                'Created encounter could not be loaded',
+            );
+        }
+
+        return encounter;
+    }
+    private escapeRegex(value: string): string {
+        return value.replace(
+            /[.*+?^${}()|[\]\\]/g,
+            '\\$&',
+        );
+    }
 
     private validateAppointmentTimes(
         startAt: Date,
@@ -522,5 +738,16 @@ export class AppointmentsService {
             .toUpperCase();
 
         return `APT-${year}-${uniquePart}`;
+    }
+
+    private generateEncounterNumber(): string {
+        const year = new Date().getUTCFullYear();
+
+        const uniquePart = randomUUID()
+            .replaceAll('-', '')
+            .slice(0, 10)
+            .toUpperCase();
+
+        return `ENC-${year}-${uniquePart}`;
     }
 }
