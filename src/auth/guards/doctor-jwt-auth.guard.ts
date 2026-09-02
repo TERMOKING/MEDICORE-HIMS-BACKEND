@@ -12,7 +12,9 @@ import { Types } from 'mongoose';
 
 import type { Request } from 'express';
 
-import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
+import {
+  IS_PUBLIC_KEY,
+} from '../decorators/public.decorator.js';
 
 interface DoctorJwtPayload {
   sub: string;
