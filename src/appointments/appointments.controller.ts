@@ -49,9 +49,9 @@ export class AppointmentsController {
     }
 
     @Post(':id/start-encounter')
-    startEncounter(@Param('id') id: string) {
-        return this.appointmentsService.startEncounter(
-            id,
-        );
-    }
+startEncounter(@Param('id') id: string) {
+  return this.appointmentsService.startEncounter(
+    id,
+  );
+}
 }

@@ -10,26 +10,12 @@ import { DoctorsModule } from './doctors/doctors.module.js';
 import { NursesModule } from './nurses/nurses.module.js';
 import { AppointmentsModule } from './appointments/appointments.module.js';
 import { EncountersModule } from './encounters/encounters.module.js';
-import { AuthModule } from './auth/auth.module.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: Joi.object({
-        JWT_SECRET: Joi.string()
-          .min(32)
-          .required(),
-
-        JWT_EXPIRES_IN_SECONDS: Joi.number()
-          .integer()
-          .min(60)
-          .max(86400)
-          .default(1800),
-
-        TEST_DOCTOR_PASSWORD: Joi.string()
-          .min(12)
-          .required(),
         NODE_ENV: Joi.string()
           .valid('development', 'test', 'production')
           .default('development'),
@@ -56,9 +42,8 @@ import { AuthModule } from './auth/auth.module.js';
     NursesModule,
     AppointmentsModule,
     EncountersModule,
-    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}
