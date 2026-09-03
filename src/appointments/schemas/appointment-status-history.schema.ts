@@ -41,5 +41,6 @@ export class AppointmentStatusHistory {
   changedById?: string;
 }
 
-export const AppointmentStatusHistorySchema =
-  SchemaFactory.createForClass(AppointmentStatusHistory);
+export const AppointmentStatusHistorySchema = SchemaFactory.createForClass(
+  AppointmentStatusHistory,
+);

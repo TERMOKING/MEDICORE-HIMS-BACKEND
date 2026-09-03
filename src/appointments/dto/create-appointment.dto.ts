@@ -45,8 +45,7 @@ export class CreateAppointmentDto {
   @IsISO8601(
     { strict: true },
     {
-      message:
-        'startAt must be a valid ISO 8601 date and time',
+      message: 'startAt must be a valid ISO 8601 date and time',
     },
   )
   startAt!: string;
@@ -54,8 +53,7 @@ export class CreateAppointmentDto {
   @IsISO8601(
     { strict: true },
     {
-      message:
-        'endAt must be a valid ISO 8601 date and time',
+      message: 'endAt must be a valid ISO 8601 date and time',
     },
   )
   endAt!: string;

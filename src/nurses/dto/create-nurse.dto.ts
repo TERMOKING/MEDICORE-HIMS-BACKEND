@@ -21,9 +21,7 @@ import {
 } from '../nurse.constants.js';
 
 function trimString(value: unknown): unknown {
-  return typeof value === 'string'
-    ? value.trim()
-    : value;
+  return typeof value === 'string' ? value.trim() : value;
 }
 
 function trimOptionalString(value: unknown): unknown {
@@ -37,22 +35,16 @@ function trimOptionalString(value: unknown): unknown {
 
   const trimmedValue = value.trim();
 
-  return trimmedValue === ''
-    ? undefined
-    : trimmedValue;
+  return trimmedValue === '' ? undefined : trimmedValue;
 }
 
 function uppercaseString(value: unknown): unknown {
-  return typeof value === 'string'
-    ? value.trim().toUpperCase()
-    : value;
+  return typeof value === 'string' ? value.trim().toUpperCase() : value;
 }
 
 export class CreateNurseDto {
   @IsOptional()
-  @Transform(({ value }) =>
-    trimOptionalString(value),
-  )
+  @Transform(({ value }) => trimOptionalString(value))
   @IsString()
   @MinLength(1)
   @MaxLength(100)
@@ -60,8 +52,7 @@ export class CreateNurseDto {
 
   @IsOptional()
   @Transform(({ value }) => {
-    const transformedValue =
-      trimOptionalString(value);
+    const transformedValue = trimOptionalString(value);
 
     return typeof transformedValue === 'string'
       ? transformedValue.toUpperCase()
@@ -81,15 +72,12 @@ export class CreateNurseDto {
   @MaxLength(100)
   fullName!: string;
 
-  @Transform(({ value }) =>
-    uppercaseString(value),
-  )
+  @Transform(({ value }) => uppercaseString(value))
   @IsString()
   @MinLength(3)
   @MaxLength(50)
   @Matches(/^[A-Z0-9./-]+$/, {
-    message:
-      'nursingRegistrationNumber contains invalid characters',
+    message: 'nursingRegistrationNumber contains invalid characters',
   })
   nursingRegistrationNumber!: string;
 
@@ -100,27 +88,21 @@ export class CreateNurseDto {
   qualification!: string;
 
   @IsOptional()
-  @Transform(({ value }) =>
-    trimOptionalString(value),
-  )
+  @Transform(({ value }) => trimOptionalString(value))
   @IsString()
   @MinLength(2)
   @MaxLength(100)
   designation?: string;
 
   @IsOptional()
-  @Transform(({ value }) =>
-    trimOptionalString(value),
-  )
+  @Transform(({ value }) => trimOptionalString(value))
   @IsString()
   @MinLength(1)
   @MaxLength(100)
   departmentId?: string;
 
   @IsOptional()
-  @Transform(({ value }) =>
-    trimOptionalString(value),
-  )
+  @Transform(({ value }) => trimOptionalString(value))
   @IsString()
   @MinLength(2)
   @MaxLength(150)
@@ -150,9 +132,7 @@ export class CreateNurseDto {
   phone!: string;
 
   @Transform(({ value }) =>
-    typeof value === 'string'
-      ? value.trim().toLowerCase()
-      : value,
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
   @IsEmail()
   @MaxLength(254)
@@ -169,9 +149,7 @@ export class CreateNurseDto {
     }
 
     return value.map((bed) =>
-      typeof bed === 'string'
-        ? bed.trim().toUpperCase()
-        : bed,
+      typeof bed === 'string' ? bed.trim().toUpperCase() : bed,
     );
   })
   @IsArray()

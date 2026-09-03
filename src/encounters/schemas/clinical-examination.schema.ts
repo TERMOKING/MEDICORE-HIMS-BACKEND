@@ -1,8 +1,4 @@
-import {
-  Prop,
-  Schema,
-  SchemaFactory,
-} from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 @Schema({ _id: false })
 export class GeneralPhysicalExam {
@@ -33,9 +29,7 @@ export class GeneralPhysicalExam {
 }
 
 export const GeneralPhysicalExamSchema =
-  SchemaFactory.createForClass(
-    GeneralPhysicalExam,
-  );
+  SchemaFactory.createForClass(GeneralPhysicalExam);
 
 @Schema({ _id: false })
 export class ClinicalExamination {
@@ -95,6 +89,4 @@ export class ClinicalExamination {
 }
 
 export const ClinicalExaminationSchema =
-  SchemaFactory.createForClass(
-    ClinicalExamination,
-  );
+  SchemaFactory.createForClass(ClinicalExamination);

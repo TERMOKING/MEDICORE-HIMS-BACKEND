@@ -7,14 +7,9 @@ import {
 
 import { InjectModel } from '@nestjs/mongoose';
 
-import {
-  Types,
-  type Model,
-} from 'mongoose';
+import { Types, type Model } from 'mongoose';
 
-import type {
-  SaveEncounterDraftDto,
-} from './dto/save-encounter-draft.dto.js';
+import type { SaveEncounterDraftDto } from './dto/save-encounter-draft.dto.js';
 
 import {
   Encounter,
@@ -25,13 +20,10 @@ import {
 export class EncountersService {
   constructor(
     @InjectModel(Encounter.name)
-    private readonly encounterModel:
-      Model<EncounterDocument>,
+    private readonly encounterModel: Model<EncounterDocument>,
   ) {}
 
-  private toPlainObject(
-    value: unknown,
-  ): Record<string, unknown> {
+  private toPlainObject(value: unknown): Record<string, unknown> {
     if (!value || typeof value !== 'object') {
       return {};
     }
@@ -40,10 +32,7 @@ export class EncountersService {
       toObject?: () => Record<string, unknown>;
     };
 
-    if (
-      typeof possibleSubdocument.toObject ===
-      'function'
-    ) {
+    if (typeof possibleSubdocument.toObject === 'function') {
       return possibleSubdocument.toObject();
     }
 
@@ -52,39 +41,32 @@ export class EncountersService {
     };
   }
 
-  async findOne(
-    id: string,
-  ): Promise<EncounterDocument> {
+  async findOne(id: string): Promise<EncounterDocument> {
     if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException(
-        'Invalid encounter ID',
-      );
+      throw new BadRequestException('Invalid encounter ID');
     }
 
-    const encounter =
-      await this.encounterModel
-        .findById(id)
-        .populate({
-          path: 'patientId',
-          select:
-            'fullName preferredName uhid phone gender dateOfBirth bloodGroup allergies',
-        })
-        .populate({
-          path: 'doctorId',
-          select:
-            'fullName qualification specialization departmentName opdRoomNumber',
-        })
-        .populate({
-          path: 'appointmentId',
-          select:
-            'appointmentNumber startAt endAt timezone status arrivedAt checkedInAt actualWaitingMinutes reasonForVisit',
-        })
-        .exec();
+    const encounter = await this.encounterModel
+      .findById(id)
+      .populate({
+        path: 'patientId',
+        select:
+          'fullName preferredName uhid phone gender dateOfBirth bloodGroup allergies',
+      })
+      .populate({
+        path: 'doctorId',
+        select:
+          'fullName qualification specialization departmentName opdRoomNumber',
+      })
+      .populate({
+        path: 'appointmentId',
+        select:
+          'appointmentNumber startAt endAt timezone status arrivedAt checkedInAt actualWaitingMinutes reasonForVisit',
+      })
+      .exec();
 
     if (!encounter) {
-      throw new NotFoundException(
-        'Encounter not found',
-      );
+      throw new NotFoundException('Encounter not found');
     }
 
     return encounter;
@@ -95,26 +77,16 @@ export class EncountersService {
     dto: SaveEncounterDraftDto,
   ): Promise<EncounterDocument> {
     if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException(
-        'Invalid encounter ID',
-      );
+      throw new BadRequestException('Invalid encounter ID');
     }
 
-    const encounter =
-      await this.encounterModel
-        .findById(id)
-        .exec();
+    const encounter = await this.encounterModel.findById(id).exec();
 
     if (!encounter) {
-      throw new NotFoundException(
-        'Encounter not found',
-      );
+      throw new NotFoundException('Encounter not found');
     }
 
-    if (
-      encounter.isLocked ||
-      encounter.status === 'signed'
-    ) {
+    if (encounter.isLocked || encounter.status === 'signed') {
       throw new ConflictException(
         'Signed or locked encounters cannot be modified',
       );
@@ -126,9 +98,7 @@ export class EncountersService {
       );
     }
 
-    const scalarAndArrayFields: Array<
-      keyof SaveEncounterDraftDto
-    > = [
+    const scalarAndArrayFields: Array<keyof SaveEncounterDraftDto> = [
       'chiefComplaint',
       'historyOfPresentIllness',
       'pastMedicalHistory',
@@ -152,84 +122,54 @@ export class EncountersService {
     const savedAt = new Date();
 
     if (dto.vitals !== undefined) {
-      const existingVitals =
-        this.toPlainObject(
-          encounter.get('vitals'),
-        );
+      const existingVitals = this.toPlainObject(encounter.get('vitals'));
 
-      const mergedVitals: Record<
-        string,
-        unknown
-      > = {
+      const mergedVitals: Record<string, unknown> = {
         ...existingVitals,
         ...dto.vitals,
         recordedAt: savedAt,
       };
 
-      const weightKg =
-        mergedVitals.weightKg;
-      const heightCm =
-        mergedVitals.heightCm;
+      const weightKg = mergedVitals.weightKg;
+      const heightCm = mergedVitals.heightCm;
 
       if (
         typeof weightKg === 'number' &&
         typeof heightCm === 'number' &&
         heightCm > 0
       ) {
-        const heightMetres =
-          heightCm / 100;
+        const heightMetres = heightCm / 100;
 
         mergedVitals.bmi = Number(
-          (
-            weightKg /
-            (heightMetres * heightMetres)
-          ).toFixed(2),
+          (weightKg / (heightMetres * heightMetres)).toFixed(2),
         );
       }
 
-      encounter.set(
-        'vitals',
-        mergedVitals,
-      );
+      encounter.set('vitals', mergedVitals);
     }
 
     if (dto.examination !== undefined) {
-      const existingExamination =
-        this.toPlainObject(
-          encounter.get('examination'),
-        );
+      const existingExamination = this.toPlainObject(
+        encounter.get('examination'),
+      );
 
-      const mergedExamination: Record<
-        string,
-        unknown
-      > = {
+      const mergedExamination: Record<string, unknown> = {
         ...existingExamination,
         ...dto.examination,
       };
 
-      if (
-        dto.examination.general !==
-        undefined
-      ) {
+      if (dto.examination.general !== undefined) {
         mergedExamination.general = {
-          ...this.toPlainObject(
-            existingExamination.general,
-          ),
+          ...this.toPlainObject(existingExamination.general),
           ...dto.examination.general,
         };
       }
 
-      encounter.set(
-        'examination',
-        mergedExamination,
-      );
+      encounter.set('examination', mergedExamination);
     }
 
     if (dto.followUp !== undefined) {
-      const existingFollowUp =
-        this.toPlainObject(
-          encounter.get('followUp'),
-        );
+      const existingFollowUp = this.toPlainObject(encounter.get('followUp'));
 
       encounter.set('followUp', {
         ...existingFollowUp,

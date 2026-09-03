@@ -1,11 +1,6 @@
-export const NURSE_SHIFTS = [
-  'morning',
-  'evening',
-  'night',
-] as const;
+export const NURSE_SHIFTS = ['morning', 'evening', 'night'] as const;
 
-export type NurseShift =
-  (typeof NURSE_SHIFTS)[number];
+export type NurseShift = (typeof NURSE_SHIFTS)[number];
 
 export const NURSE_STATUSES = [
   'active',
@@ -14,8 +9,7 @@ export const NURSE_STATUSES = [
   'archived',
 ] as const;
 
-export type NurseStatus =
-  (typeof NURSE_STATUSES)[number];
+export type NurseStatus = (typeof NURSE_STATUSES)[number];
 
 export const NURSE_EDITABLE_STATUSES = [
   'active',
@@ -23,5 +17,4 @@ export const NURSE_EDITABLE_STATUSES = [
   'inactive',
 ] as const;
 
-export type NurseEditableStatus =
-  (typeof NURSE_EDITABLE_STATUSES)[number];
+export type NurseEditableStatus = (typeof NURSE_EDITABLE_STATUSES)[number];

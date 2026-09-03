@@ -38,16 +38,7 @@ export class CreatePatientDto {
   @IsIn(['male', 'female', 'other'])
   gender!: 'male' | 'female' | 'other';
 
-  @IsIn([
-    'A+',
-    'A-',
-    'B+',
-    'B-',
-    'AB+',
-    'AB-',
-    'O+',
-    'O-',
-  ])
+  @IsIn(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'])
   bloodGroup!: string;
 
   @IsString()
@@ -75,13 +66,7 @@ export class CreatePatientDto {
   emergencyContact!: EmergencyContactDto;
 
   @IsOptional()
-  @IsIn([
-    'single',
-    'married',
-    'widowed',
-    'divorced',
-    'other',
-  ])
+  @IsIn(['single', 'married', 'widowed', 'divorced', 'other'])
   maritalStatus?: string;
 
   @IsOptional()

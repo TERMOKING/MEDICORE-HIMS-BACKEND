@@ -1,8 +1,4 @@
-import {
-  Prop,
-  Schema,
-  SchemaFactory,
-} from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 @Schema({ _id: false })
 export class VitalSigns {
@@ -94,5 +90,4 @@ export class VitalSigns {
   notes?: string;
 }
 
-export const VitalSignsSchema =
-  SchemaFactory.createForClass(VitalSigns);
+export const VitalSignsSchema = SchemaFactory.createForClass(VitalSigns);

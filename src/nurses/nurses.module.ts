@@ -1,10 +1,7 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
-import {
-  Nurse,
-  NurseSchema,
-} from './schemas/nurse.schema.js';
+import { Nurse, NurseSchema } from './schemas/nurse.schema.js';
 import { NursesService } from './nurses.service.js';
 import { NursesController } from './nurses.controller.js';
 

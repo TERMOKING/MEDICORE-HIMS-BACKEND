@@ -11,13 +11,9 @@ import {
   Min,
 } from 'class-validator';
 
-import {
-  REFERRAL_PRIORITIES,
-} from '../schemas/clinical-plan.schema.js';
+import { REFERRAL_PRIORITIES } from '../schemas/clinical-plan.schema.js';
 
-import type {
-  ReferralPriority,
-} from '../schemas/clinical-plan.schema.js';
+import type { ReferralPriority } from '../schemas/clinical-plan.schema.js';
 
 export class ClinicalReferralDto {
   @IsOptional()

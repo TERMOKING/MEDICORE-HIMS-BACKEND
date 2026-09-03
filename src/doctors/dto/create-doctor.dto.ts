@@ -24,72 +24,55 @@ import {
 
 export class CreateDoctorDto {
   @IsOptional()
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1)
   @MaxLength(100)
   userId?: string;
 
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(3)
   @MaxLength(100)
   fullName!: string;
 
   @Transform(({ value }) =>
-    typeof value === 'string'
-      ? value.trim().toUpperCase()
-      : value,
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
   @IsString()
   @MinLength(3)
   @MaxLength(100)
   @Matches(/^[A-Z0-9./-]+$/, {
-    message:
-      'medicalRegistrationNumber contains invalid characters',
+    message: 'medicalRegistrationNumber contains invalid characters',
   })
   medicalRegistrationNumber!: string;
 
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(2)
   @MaxLength(255)
   qualification!: string;
 
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(2)
   @MaxLength(100)
   specialization!: string;
 
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1)
   @MaxLength(100)
   departmentId!: string;
 
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(2)
   @MaxLength(150)
   departmentName!: string;
 
   @Transform(({ value }) =>
-    typeof value === 'string'
-      ? value.trim().toUpperCase()
-      : value,
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
   )
   @IsString()
   @MinLength(1)
@@ -121,17 +104,13 @@ export class CreateDoctorDto {
   })
   availableDays!: DoctorAvailableDay[];
 
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(3)
   @MaxLength(100)
   opdTimings!: string;
 
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MaxLength(20)
   @Matches(/^\+?[0-9][0-9\s-]{6,19}$/, {
@@ -140,9 +119,7 @@ export class CreateDoctorDto {
   phone!: string;
 
   @Transform(({ value }) =>
-    typeof value === 'string'
-      ? value.trim().toLowerCase()
-      : value,
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
   @IsEmail()
   @MaxLength(254)

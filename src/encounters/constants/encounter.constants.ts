@@ -6,8 +6,7 @@ export const ENCOUNTER_STATUSES = [
   'cancelled',
 ] as const;
 
-export type EncounterStatus =
-  (typeof ENCOUNTER_STATUSES)[number];
+export type EncounterStatus = (typeof ENCOUNTER_STATUSES)[number];
 
 export const ENCOUNTER_TYPES = [
   'outpatient',
@@ -16,5 +15,4 @@ export const ENCOUNTER_TYPES = [
   'teleconsultation',
 ] as const;
 
-export type EncounterType =
-  (typeof ENCOUNTER_TYPES)[number];
+export type EncounterType = (typeof ENCOUNTER_TYPES)[number];

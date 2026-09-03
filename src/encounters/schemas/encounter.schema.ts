@@ -1,13 +1,6 @@
-import {
-  Prop,
-  Schema,
-  SchemaFactory,
-} from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
-import {
-  HydratedDocument,
-  Types,
-} from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 import {
   ENCOUNTER_STATUSES,
@@ -21,10 +14,7 @@ import {
   EncounterStatusHistorySchema,
 } from './encounter-status-history.schema.js';
 
-import {
-  VitalSigns,
-  VitalSignsSchema,
-} from './vital-signs.schema.js';
+import { VitalSigns, VitalSignsSchema } from './vital-signs.schema.js';
 
 import {
   ClinicalExamination,
@@ -38,15 +28,13 @@ import {
   FollowUpPlanSchema,
 } from './clinical-plan.schema.js';
 
-export type EncounterDocument =
-  HydratedDocument<Encounter>;
+export type EncounterDocument = HydratedDocument<Encounter>;
 
 @Schema({
   timestamps: true,
   optimisticConcurrency: true,
 })
 export class Encounter {
-
   @Prop({
     trim: true,
     maxlength: 5000,
@@ -248,8 +236,7 @@ export class Encounter {
   statusHistory!: EncounterStatusHistory[];
 }
 
-export const EncounterSchema =
-  SchemaFactory.createForClass(Encounter);
+export const EncounterSchema = SchemaFactory.createForClass(Encounter);
 
 EncounterSchema.index({
   patientId: 1,

@@ -214,8 +214,7 @@ export class Appointment {
   notes?: string;
 }
 
-export const AppointmentSchema =
-  SchemaFactory.createForClass(Appointment);
+export const AppointmentSchema = SchemaFactory.createForClass(Appointment);
 
 AppointmentSchema.index({
   patientId: 1,

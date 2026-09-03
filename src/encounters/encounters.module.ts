@@ -1,12 +1,10 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
-import {
-  Encounter,
-  EncounterSchema,
-} from './schemas/encounter.schema.js';
+import { Encounter, EncounterSchema } from './schemas/encounter.schema.js';
 import { EncountersService } from './encounters.service.js';
 import { EncountersController } from './encounters.controller.js';
+import { DiagnosesModule } from './diagnoses/diagnoses.module.js';
 
 @Module({
   imports: [
@@ -16,6 +14,7 @@ import { EncountersController } from './encounters.controller.js';
         schema: EncounterSchema,
       },
     ]),
+    DiagnosesModule,
   ],
   providers: [EncountersService],
   exports: [MongooseModule],

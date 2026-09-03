@@ -5,20 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import {
-  isValidObjectId,
-  type Model,
-} from 'mongoose';
+import { isValidObjectId, type Model } from 'mongoose';
 
 import { CreateNurseDto } from './dto/create-nurse.dto.js';
-import {
-  ListNursesQueryDto,
-} from './dto/list-nurses-query.dto.js';
+import { ListNursesQueryDto } from './dto/list-nurses-query.dto.js';
 import { UpdateNurseDto } from './dto/update-nurse.dto.js';
-import type {
-  NurseEditableStatus,
-  NurseShift,
-} from './nurse.constants.js';
+import type { NurseEditableStatus, NurseShift } from './nurse.constants.js';
 import { Nurse } from './schemas/nurse.schema.js';
 
 type NurseListFilter = {
@@ -44,16 +36,12 @@ export class NursesService {
     private readonly nurseModel: Model<Nurse>,
   ) {}
 
-  async create(
-    createNurseDto: CreateNurseDto,
-  ): Promise<Nurse> {
+  async create(createNurseDto: CreateNurseDto): Promise<Nurse> {
     this.rejectNullValues(createNurseDto);
 
-    const hasDepartmentId =
-      createNurseDto.departmentId !== undefined;
+    const hasDepartmentId = createNurseDto.departmentId !== undefined;
 
-    const hasDepartmentName =
-      createNurseDto.departmentName !== undefined;
+    const hasDepartmentName = createNurseDto.departmentName !== undefined;
 
     if (hasDepartmentId !== hasDepartmentName) {
       throw new BadRequestException(
@@ -65,11 +53,9 @@ export class NursesService {
       userId: createNurseDto.userId,
       employeeId: createNurseDto.employeeId,
       fullName: createNurseDto.fullName,
-      nursingRegistrationNumber:
-        createNurseDto.nursingRegistrationNumber,
+      nursingRegistrationNumber: createNurseDto.nursingRegistrationNumber,
       qualification: createNurseDto.qualification,
-      designation:
-        createNurseDto.designation ?? 'Staff Nurse',
+      designation: createNurseDto.designation ?? 'Staff Nurse',
       departmentId: createNurseDto.departmentId,
       departmentName: createNurseDto.departmentName,
       wardId: createNurseDto.wardId,
@@ -77,10 +63,8 @@ export class NursesService {
       shift: createNurseDto.shift,
       phone: createNurseDto.phone,
       email: createNurseDto.email,
-      isShiftActive:
-        createNurseDto.isShiftActive ?? true,
-      assignedBeds:
-        createNurseDto.assignedBeds ?? [],
+      isShiftActive: createNurseDto.isShiftActive ?? true,
+      assignedBeds: createNurseDto.assignedBeds ?? [],
       status: createNurseDto.status ?? 'active',
     });
 
@@ -131,10 +115,7 @@ export class NursesService {
     }
 
     if (search !== undefined) {
-      const safeSearch = new RegExp(
-        this.escapeRegExp(search),
-        'i',
-      );
+      const safeSearch = new RegExp(this.escapeRegExp(search), 'i');
 
       filter.$or = [
         { fullName: safeSearch },
@@ -163,9 +144,7 @@ export class NursesService {
         .lean()
         .exec(),
 
-      this.nurseModel
-        .countDocuments(filter)
-        .exec(),
+      this.nurseModel.countDocuments(filter).exec(),
     ]);
 
     return {
@@ -181,9 +160,7 @@ export class NursesService {
 
   async findOne(id: string) {
     if (!isValidObjectId(id)) {
-      throw new BadRequestException(
-        'Invalid nurse ID',
-      );
+      throw new BadRequestException('Invalid nurse ID');
     }
 
     const nurse = await this.nurseModel
@@ -196,22 +173,15 @@ export class NursesService {
       .exec();
 
     if (nurse === null) {
-      throw new NotFoundException(
-        'Nurse not found',
-      );
+      throw new NotFoundException('Nurse not found');
     }
 
     return nurse;
   }
 
-  async update(
-    id: string,
-    updateNurseDto: UpdateNurseDto,
-  ) {
+  async update(id: string, updateNurseDto: UpdateNurseDto) {
     if (!isValidObjectId(id)) {
-      throw new BadRequestException(
-        'Invalid nurse ID',
-      );
+      throw new BadRequestException('Invalid nurse ID');
     }
 
     this.rejectNullValues(updateNurseDto);
@@ -222,10 +192,8 @@ export class NursesService {
 
     if (
       updatesDepartment &&
-      (
-        updateNurseDto.departmentId === undefined ||
-        updateNurseDto.departmentName === undefined
-      )
+      (updateNurseDto.departmentId === undefined ||
+        updateNurseDto.departmentName === undefined)
     ) {
       throw new BadRequestException(
         'departmentId and departmentName must be updated together',
@@ -239,43 +207,32 @@ export class NursesService {
     }
 
     if (updateNurseDto.employeeId !== undefined) {
-      updateData.employeeId =
-        updateNurseDto.employeeId;
+      updateData.employeeId = updateNurseDto.employeeId;
     }
 
     if (updateNurseDto.fullName !== undefined) {
-      updateData.fullName =
-        updateNurseDto.fullName;
+      updateData.fullName = updateNurseDto.fullName;
     }
 
-    if (
-      updateNurseDto.nursingRegistrationNumber !==
-      undefined
-    ) {
+    if (updateNurseDto.nursingRegistrationNumber !== undefined) {
       updateData.nursingRegistrationNumber =
         updateNurseDto.nursingRegistrationNumber;
     }
 
     if (updateNurseDto.qualification !== undefined) {
-      updateData.qualification =
-        updateNurseDto.qualification;
+      updateData.qualification = updateNurseDto.qualification;
     }
 
     if (updateNurseDto.designation !== undefined) {
-      updateData.designation =
-        updateNurseDto.designation;
+      updateData.designation = updateNurseDto.designation;
     }
 
     if (updateNurseDto.departmentId !== undefined) {
-      updateData.departmentId =
-        updateNurseDto.departmentId;
+      updateData.departmentId = updateNurseDto.departmentId;
     }
 
-    if (
-      updateNurseDto.departmentName !== undefined
-    ) {
-      updateData.departmentName =
-        updateNurseDto.departmentName;
+    if (updateNurseDto.departmentName !== undefined) {
+      updateData.departmentName = updateNurseDto.departmentName;
     }
 
     if (updateNurseDto.wardId !== undefined) {
@@ -283,8 +240,7 @@ export class NursesService {
     }
 
     if (updateNurseDto.wardName !== undefined) {
-      updateData.wardName =
-        updateNurseDto.wardName;
+      updateData.wardName = updateNurseDto.wardName;
     }
 
     if (updateNurseDto.shift !== undefined) {
@@ -299,16 +255,12 @@ export class NursesService {
       updateData.email = updateNurseDto.email;
     }
 
-    if (
-      updateNurseDto.isShiftActive !== undefined
-    ) {
-      updateData.isShiftActive =
-        updateNurseDto.isShiftActive;
+    if (updateNurseDto.isShiftActive !== undefined) {
+      updateData.isShiftActive = updateNurseDto.isShiftActive;
     }
 
     if (updateNurseDto.assignedBeds !== undefined) {
-      updateData.assignedBeds =
-        updateNurseDto.assignedBeds;
+      updateData.assignedBeds = updateNurseDto.assignedBeds;
     }
 
     if (updateNurseDto.status !== undefined) {
@@ -341,9 +293,7 @@ export class NursesService {
         .exec();
 
       if (nurse === null) {
-        throw new NotFoundException(
-          'Nurse not found',
-        );
+        throw new NotFoundException('Nurse not found');
       }
 
       return nurse;
@@ -355,9 +305,7 @@ export class NursesService {
 
   async remove(id: string) {
     if (!isValidObjectId(id)) {
-      throw new BadRequestException(
-        'Invalid nurse ID',
-      );
+      throw new BadRequestException('Invalid nurse ID');
     }
 
     const deletedNurse = await this.nurseModel
@@ -385,9 +333,7 @@ export class NursesService {
       .exec();
 
     if (deletedNurse === null) {
-      throw new NotFoundException(
-        'Nurse not found',
-      );
+      throw new NotFoundException('Nurse not found');
     }
 
     return {
@@ -403,38 +349,28 @@ export class NursesService {
     )?.[0];
 
     if (nullField !== undefined) {
-      throw new BadRequestException(
-        `${nullField} cannot be null`,
-      );
+      throw new BadRequestException(`${nullField} cannot be null`);
     }
   }
 
   private escapeRegExp(value: string): string {
-    return value.replace(
-      /[.*+?^${}()|[\]\\]/g,
-      '\\$&',
-    );
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  private handleDuplicateKeyError(
-    error: unknown,
-  ): void {
+  private handleDuplicateKeyError(error: unknown): void {
     if (!this.isDuplicateKeyError(error)) {
       return;
     }
 
     const duplicateField =
-      Object.keys(error.keyPattern ?? {})[0] ??
-      'unique field';
+      Object.keys(error.keyPattern ?? {})[0] ?? 'unique field';
 
     throw new ConflictException(
       `A nurse with this ${duplicateField} already exists`,
     );
   }
 
-  private isDuplicateKeyError(
-    error: unknown,
-  ): error is {
+  private isDuplicateKeyError(error: unknown): error is {
     code: number;
     keyPattern?: Record<string, number>;
   } {

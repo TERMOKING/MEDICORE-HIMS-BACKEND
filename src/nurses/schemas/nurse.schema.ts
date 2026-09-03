@@ -170,8 +170,7 @@ export class Nurse {
   deletedAt?: Date;
 }
 
-export const NurseSchema =
-  SchemaFactory.createForClass(Nurse);
+export const NurseSchema = SchemaFactory.createForClass(Nurse);
 
 NurseSchema.index({
   wardId: 1,

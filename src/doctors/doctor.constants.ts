@@ -9,5 +9,4 @@ export const DOCTOR_AVAILABLE_DAYS = [
   'All Days',
 ] as const;
 
-export type DoctorAvailableDay =
-  (typeof DOCTOR_AVAILABLE_DAYS)[number];
+export type DoctorAvailableDay = (typeof DOCTOR_AVAILABLE_DAYS)[number];

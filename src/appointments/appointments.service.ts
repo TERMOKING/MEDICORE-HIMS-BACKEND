@@ -1,18 +1,14 @@
 import {
-    BadRequestException,
-    ConflictException,
-    Injectable,
-    InternalServerErrorException,
-    NotFoundException,
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { randomUUID } from 'node:crypto';
-import {
-    Types,
-    type Connection,
-    type Model,
-} from 'mongoose';
+import { Types, type Connection, type Model } from 'mongoose';
 
 import { Doctor } from '../doctors/schemas/doctor.schema.js';
 import { Patient } from '../patients/schemas/patient.schema.js';
@@ -21,733 +17,640 @@ import { ListAppointmentsQueryDto } from './dto/list-appointments-query.dto.js';
 import { CreateAppointmentDto } from './dto/create-appointment.dto.js';
 
 import {
-    Appointment,
-    type AppointmentDocument,
+  Appointment,
+  type AppointmentDocument,
 } from './schemas/appointment.schema.js';
 
 import type { AppointmentStatus } from './constants/appointment.constants.js';
 import {
-    Encounter,
-    type EncounterDocument,
+  Encounter,
+  type EncounterDocument,
 } from '../encounters/schemas/encounter.schema.js';
 
 type AppointmentListFilter = {
-    appointmentNumber?: {
-        $regex: string;
-        $options: string;
-    };
-    patientId?: Types.ObjectId;
-    doctorId?: Types.ObjectId;
-    departmentId?: string;
-    status?: AppointmentStatus;
-    appointmentType?: Appointment['appointmentType'];
-    priority?: Appointment['priority'];
-    startAt?: {
-        $gte?: Date;
-        $lte?: Date;
-    };
+  appointmentNumber?: {
+    $regex: string;
+    $options: string;
+  };
+  patientId?: Types.ObjectId;
+  doctorId?: Types.ObjectId;
+  departmentId?: string;
+  status?: AppointmentStatus;
+  appointmentType?: Appointment['appointmentType'];
+  priority?: Appointment['priority'];
+  startAt?: {
+    $gte?: Date;
+    $lte?: Date;
+  };
 };
 
 @Injectable()
 export class AppointmentsService {
-    constructor(
+  constructor(
+    @InjectModel(Encounter.name)
+    private readonly encounterModel: Model<EncounterDocument>,
 
-        @InjectModel(Encounter.name)
-        private readonly encounterModel: Model<EncounterDocument>,
+    @InjectConnection()
+    private readonly connection: Connection,
 
-        @InjectConnection()
-        private readonly connection: Connection,
+    @InjectModel(Appointment.name)
+    private readonly appointmentModel: Model<AppointmentDocument>,
 
-        @InjectModel(Appointment.name)
-        private readonly appointmentModel: Model<AppointmentDocument>,
+    @InjectModel(Patient.name)
+    private readonly patientModel: Model<Patient>,
 
-        @InjectModel(Patient.name)
-        private readonly patientModel: Model<Patient>,
+    @InjectModel(Doctor.name)
+    private readonly doctorModel: Model<Doctor>,
+  ) {}
 
-        @InjectModel(Doctor.name)
-        private readonly doctorModel: Model<Doctor>,
-    ) { }
+  async create(
+    createAppointmentDto: CreateAppointmentDto,
+  ): Promise<AppointmentDocument> {
+    const startAt = new Date(createAppointmentDto.startAt);
+    const endAt = new Date(createAppointmentDto.endAt);
 
+    this.validateAppointmentTimes(startAt, endAt);
 
-    async create(
-        createAppointmentDto: CreateAppointmentDto,
-    ): Promise<AppointmentDocument> {
-        const startAt = new Date(createAppointmentDto.startAt);
-        const endAt = new Date(createAppointmentDto.endAt);
+    const [patientExists, doctorExists] = await Promise.all([
+      this.patientModel.exists({
+        _id: createAppointmentDto.patientId,
+        isDeleted: false,
+      }),
 
-        this.validateAppointmentTimes(startAt, endAt);
+      this.doctorModel.exists({
+        _id: createAppointmentDto.doctorId,
+        isDeleted: false,
+      }),
+    ]);
 
-        const [patientExists, doctorExists] = await Promise.all([
-            this.patientModel.exists({
-                _id: createAppointmentDto.patientId,
-                isDeleted: false,
-            }),
-
-            this.doctorModel.exists({
-                _id: createAppointmentDto.doctorId,
-                isDeleted: false,
-            }),
-        ]);
-
-        if (!patientExists) {
-            throw new NotFoundException('Patient not found');
-        }
-
-        if (!doctorExists) {
-            throw new NotFoundException('Doctor not found');
-        }
-
-        const blockingStatuses: AppointmentStatus[] = [
-            'pending',
-            'booked',
-            'arrived',
-            'checked_in',
-        ];
-
-        const conflictingAppointment =
-            await this.appointmentModel.exists({
-                doctorId: createAppointmentDto.doctorId,
-                status: {
-                    $in: blockingStatuses,
-                },
-                startAt: {
-                    $lt: endAt,
-                },
-                endAt: {
-                    $gt: startAt,
-                },
-            });
-
-        if (conflictingAppointment) {
-            throw new ConflictException(
-                'The doctor already has an appointment during this time',
-            );
-        }
-
-        const source = createAppointmentDto.source ?? 'staff';
-
-        const initialStatus: AppointmentStatus =
-            source === 'online' ? 'pending' : 'booked';
-
-        const appointmentNumber =
-            this.generateAppointmentNumber();
-
-        const appointment = new this.appointmentModel({
-            ...createAppointmentDto,
-
-            appointmentNumber,
-
-            patientId: new Types.ObjectId(
-                createAppointmentDto.patientId,
-            ),
-
-            doctorId: new Types.ObjectId(
-                createAppointmentDto.doctorId,
-            ),
-
-            startAt,
-            endAt,
-            source,
-            status: initialStatus,
-
-            statusHistory: [
-                {
-                    toStatus: initialStatus,
-                    changedAt: new Date(),
-                    reason: 'Appointment created',
-                },
-            ],
-        });
-
-        try {
-            return await appointment.save();
-        } catch (error: unknown) {
-            const databaseError = error as {
-                code?: number;
-            };
-
-            if (databaseError.code === 11000) {
-                throw new ConflictException(
-                    'An appointment with the generated number already exists',
-                );
-            }
-
-            throw error;
-        }
+    if (!patientExists) {
+      throw new NotFoundException('Patient not found');
     }
 
-    async checkIn(
-        id: string,
-    ): Promise<AppointmentDocument> {
-        if (!Types.ObjectId.isValid(id)) {
-            throw new BadRequestException(
-                'Invalid appointment ID',
-            );
-        }
+    if (!doctorExists) {
+      throw new NotFoundException('Doctor not found');
+    }
 
-        const checkedInAt = new Date();
+    const blockingStatuses: AppointmentStatus[] = [
+      'pending',
+      'booked',
+      'arrived',
+      'checked_in',
+    ];
 
-        const appointment =
-            await this.appointmentModel
-                .findOneAndUpdate(
-                    {
-                        _id: id,
-                        status: 'arrived',
-                    },
-                    {
-                        $set: {
-                            status: 'checked_in',
-                            checkedInAt,
-                        },
-                        $push: {
-                            statusHistory: {
-                                fromStatus: 'arrived',
-                                toStatus: 'checked_in',
-                                changedAt: checkedInAt,
-                                reason: 'Patient checked in',
-                            },
-                        },
-                    },
-                    {
-                        new: true,
-                        runValidators: true,
-                    },
-                )
-                .populate({
-                    path: 'patientId',
-                    select:
-                        'fullName preferredName uhid phone gender dateOfBirth',
-                })
-                .populate({
-                    path: 'doctorId',
-                    select:
-                        'fullName specialization departmentName opdRoomNumber',
-                })
-                .exec();
+    const conflictingAppointment = await this.appointmentModel.exists({
+      doctorId: createAppointmentDto.doctorId,
+      status: {
+        $in: blockingStatuses,
+      },
+      startAt: {
+        $lt: endAt,
+      },
+      endAt: {
+        $gt: startAt,
+      },
+    });
 
-        if (appointment) {
-            return appointment;
-        }
+    if (conflictingAppointment) {
+      throw new ConflictException(
+        'The doctor already has an appointment during this time',
+      );
+    }
 
-        const existingAppointment =
-            await this.appointmentModel
-                .findById(id)
-                .select('status')
-                .lean()
-                .exec();
+    const source = createAppointmentDto.source ?? 'staff';
 
-        if (!existingAppointment) {
-            throw new NotFoundException(
-                'Appointment not found',
-            );
-        }
+    const initialStatus: AppointmentStatus =
+      source === 'online' ? 'pending' : 'booked';
 
+    const appointmentNumber = this.generateAppointmentNumber();
+
+    const appointment = new this.appointmentModel({
+      ...createAppointmentDto,
+
+      appointmentNumber,
+
+      patientId: new Types.ObjectId(createAppointmentDto.patientId),
+
+      doctorId: new Types.ObjectId(createAppointmentDto.doctorId),
+
+      startAt,
+      endAt,
+      source,
+      status: initialStatus,
+
+      statusHistory: [
+        {
+          toStatus: initialStatus,
+          changedAt: new Date(),
+          reason: 'Appointment created',
+        },
+      ],
+    });
+
+    try {
+      return await appointment.save();
+    } catch (error: unknown) {
+      const databaseError = error as {
+        code?: number;
+      };
+
+      if (databaseError.code === 11000) {
         throw new ConflictException(
-            `Only an arrived appointment can be checked in. Current status: ${existingAppointment.status}`,
+          'An appointment with the generated number already exists',
         );
+      }
+
+      throw error;
+    }
+  }
+
+  async checkIn(id: string): Promise<AppointmentDocument> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid appointment ID');
     }
 
-    async findAll(query: ListAppointmentsQueryDto) {
-        const filter: AppointmentListFilter = {};
+    const checkedInAt = new Date();
 
-        if (query.search) {
-            filter.appointmentNumber = {
-                $regex: this.escapeRegex(query.search.trim()),
-                $options: 'i',
-            };
-        }
-
-        if (query.patientId) {
-            filter.patientId = new Types.ObjectId(
-                query.patientId,
-            );
-        }
-
-        if (query.doctorId) {
-            filter.doctorId = new Types.ObjectId(
-                query.doctorId,
-            );
-        }
-
-        if (query.departmentId) {
-            filter.departmentId = query.departmentId;
-        }
-
-        if (query.status) {
-            filter.status = query.status;
-        }
-
-        if (query.appointmentType) {
-            filter.appointmentType = query.appointmentType;
-        }
-
-        if (query.priority) {
-            filter.priority = query.priority;
-        }
-
-        if (query.dateFrom || query.dateTo) {
-            filter.startAt = {};
-
-            if (query.dateFrom) {
-                filter.startAt.$gte = new Date(query.dateFrom);
-            }
-
-            if (query.dateTo) {
-                filter.startAt.$lte = new Date(query.dateTo);
-            }
-
-            if (
-                filter.startAt.$gte &&
-                filter.startAt.$lte &&
-                filter.startAt.$gte > filter.startAt.$lte
-            ) {
-                throw new BadRequestException(
-                    'dateFrom must be before dateTo',
-                );
-            }
-        }
-
-        const page = query.page;
-        const limit = query.limit;
-        const skip = (page - 1) * limit;
-        const sortDirection: 1 | -1 =
-            query.sortOrder === 'asc' ? 1 : -1;
-
-        const [appointments, total] = await Promise.all([
-            this.appointmentModel
-                .find(filter)
-                .populate({
-                    path: 'patientId',
-                    select:
-                        'fullName preferredName uhid phone gender dateOfBirth',
-                })
-                .populate({
-                    path: 'doctorId',
-                    select:
-                        'fullName specialization departmentName opdRoomNumber',
-                })
-                .sort({
-                    [query.sortBy]: sortDirection,
-                })
-                .skip(skip)
-                .limit(limit)
-                .lean()
-                .exec(),
-
-            this.appointmentModel.countDocuments(filter).exec(),
-        ]);
-
-        const now = Date.now();
-
-        const items = appointments.map((appointment) => {
-            const waitingStart =
-                appointment.waitingStartedAt?.getTime();
-
-            const isActivelyWaiting =
-                (
-                    appointment.status === 'arrived' ||
-                    appointment.status === 'checked_in'
-                ) &&
-                waitingStart !== undefined &&
-                waitingStart <= now &&
-                !appointment.consultationStartedAt;
-
-            const currentWaitingMinutes = isActivelyWaiting
-                ? Math.max(
-                    0,
-                    Math.floor((now - waitingStart) / 60_000),
-                )
-                : appointment.actualWaitingMinutes ?? 0;
-
-            return {
-                ...appointment,
-                currentWaitingMinutes,
-            };
-        });
-
-        return {
-            items,
-            pagination: {
-                page,
-                limit,
-                total,
-                totalPages: Math.ceil(total / limit),
+    const appointment = await this.appointmentModel
+      .findOneAndUpdate(
+        {
+          _id: id,
+          status: 'arrived',
+        },
+        {
+          $set: {
+            status: 'checked_in',
+            checkedInAt,
+          },
+          $push: {
+            statusHistory: {
+              fromStatus: 'arrived',
+              toStatus: 'checked_in',
+              changedAt: checkedInAt,
+              reason: 'Patient checked in',
             },
-        };
+          },
+        },
+        {
+          new: true,
+          runValidators: true,
+        },
+      )
+      .populate({
+        path: 'patientId',
+        select: 'fullName preferredName uhid phone gender dateOfBirth',
+      })
+      .populate({
+        path: 'doctorId',
+        select: 'fullName specialization departmentName opdRoomNumber',
+      })
+      .exec();
+
+    if (appointment) {
+      return appointment;
     }
 
-    async findOne(id: string): Promise<AppointmentDocument> {
-        if (!Types.ObjectId.isValid(id)) {
-            throw new BadRequestException(
-                'Invalid appointment ID',
-            );
-        }
+    const existingAppointment = await this.appointmentModel
+      .findById(id)
+      .select('status')
+      .lean()
+      .exec();
 
+    if (!existingAppointment) {
+      throw new NotFoundException('Appointment not found');
+    }
+
+    throw new ConflictException(
+      `Only an arrived appointment can be checked in. Current status: ${existingAppointment.status}`,
+    );
+  }
+
+  async findAll(query: ListAppointmentsQueryDto) {
+    const filter: AppointmentListFilter = {};
+
+    if (query.search) {
+      filter.appointmentNumber = {
+        $regex: this.escapeRegex(query.search.trim()),
+        $options: 'i',
+      };
+    }
+
+    if (query.patientId) {
+      filter.patientId = new Types.ObjectId(query.patientId);
+    }
+
+    if (query.doctorId) {
+      filter.doctorId = new Types.ObjectId(query.doctorId);
+    }
+
+    if (query.departmentId) {
+      filter.departmentId = query.departmentId;
+    }
+
+    if (query.status) {
+      filter.status = query.status;
+    }
+
+    if (query.appointmentType) {
+      filter.appointmentType = query.appointmentType;
+    }
+
+    if (query.priority) {
+      filter.priority = query.priority;
+    }
+
+    if (query.dateFrom || query.dateTo) {
+      filter.startAt = {};
+
+      if (query.dateFrom) {
+        filter.startAt.$gte = new Date(query.dateFrom);
+      }
+
+      if (query.dateTo) {
+        filter.startAt.$lte = new Date(query.dateTo);
+      }
+
+      if (
+        filter.startAt.$gte &&
+        filter.startAt.$lte &&
+        filter.startAt.$gte > filter.startAt.$lte
+      ) {
+        throw new BadRequestException('dateFrom must be before dateTo');
+      }
+    }
+
+    const page = query.page;
+    const limit = query.limit;
+    const skip = (page - 1) * limit;
+    const sortDirection: 1 | -1 = query.sortOrder === 'asc' ? 1 : -1;
+
+    const [appointments, total] = await Promise.all([
+      this.appointmentModel
+        .find(filter)
+        .populate({
+          path: 'patientId',
+          select: 'fullName preferredName uhid phone gender dateOfBirth',
+        })
+        .populate({
+          path: 'doctorId',
+          select: 'fullName specialization departmentName opdRoomNumber',
+        })
+        .sort({
+          [query.sortBy]: sortDirection,
+        })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+
+      this.appointmentModel.countDocuments(filter).exec(),
+    ]);
+
+    const now = Date.now();
+
+    const items = appointments.map((appointment) => {
+      const waitingStart = appointment.waitingStartedAt?.getTime();
+
+      const isActivelyWaiting =
+        (appointment.status === 'arrived' ||
+          appointment.status === 'checked_in') &&
+        waitingStart !== undefined &&
+        waitingStart <= now &&
+        !appointment.consultationStartedAt;
+
+      const currentWaitingMinutes = isActivelyWaiting
+        ? Math.max(0, Math.floor((now - waitingStart) / 60_000))
+        : (appointment.actualWaitingMinutes ?? 0);
+
+      return {
+        ...appointment,
+        currentWaitingMinutes,
+      };
+    });
+
+    return {
+      items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findOne(id: string): Promise<AppointmentDocument> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid appointment ID');
+    }
+
+    const appointment = await this.appointmentModel
+      .findById(id)
+      .populate({
+        path: 'patientId',
+        select: 'fullName preferredName uhid phone gender dateOfBirth',
+      })
+      .populate({
+        path: 'doctorId',
+        select: 'fullName specialization departmentName opdRoomNumber',
+      })
+      .exec();
+
+    if (!appointment) {
+      throw new NotFoundException('Appointment not found');
+    }
+
+    return appointment;
+  }
+
+  async markArrived(id: string): Promise<AppointmentDocument> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid appointment ID');
+    }
+
+    const existingAppointment = await this.appointmentModel
+      .findById(id)
+      .select('status startAt')
+      .exec();
+
+    if (!existingAppointment) {
+      throw new NotFoundException('Appointment not found');
+    }
+
+    if (existingAppointment.status !== 'booked') {
+      throw new ConflictException(
+        `Only a booked appointment can be marked as arrived. Current status: ${existingAppointment.status}`,
+      );
+    }
+
+    const arrivedAt = new Date();
+
+    const waitingStartedAt =
+      existingAppointment.startAt.getTime() > arrivedAt.getTime()
+        ? existingAppointment.startAt
+        : arrivedAt;
+
+    const appointment = await this.appointmentModel
+      .findOneAndUpdate(
+        {
+          _id: id,
+          status: 'booked',
+        },
+        {
+          $set: {
+            status: 'arrived',
+            arrivedAt,
+            waitingStartedAt,
+          },
+          $push: {
+            statusHistory: {
+              fromStatus: 'booked',
+              toStatus: 'arrived',
+              changedAt: arrivedAt,
+              reason: 'Patient arrived at hospital',
+            },
+          },
+        },
+        {
+          new: true,
+          runValidators: true,
+        },
+      )
+      .populate({
+        path: 'patientId',
+        select: 'fullName preferredName uhid phone gender dateOfBirth',
+      })
+      .populate({
+        path: 'doctorId',
+        select: 'fullName specialization departmentName opdRoomNumber',
+      })
+      .exec();
+
+    if (!appointment) {
+      throw new ConflictException(
+        'Appointment status changed during the arrival operation',
+      );
+    }
+
+    return appointment;
+  }
+  async startEncounter(id: string): Promise<EncounterDocument> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid appointment ID');
+    }
+
+    const session = await this.connection.startSession();
+
+    let createdEncounterId: Types.ObjectId | undefined;
+
+    try {
+      await session.withTransaction(async () => {
         const appointment = await this.appointmentModel
+          .findOne({
+            _id: id,
+            status: 'checked_in',
+            encounterId: null,
+          })
+          .session(session)
+          .exec();
+
+        if (!appointment) {
+          const existingAppointment = await this.appointmentModel
             .findById(id)
-            .populate({
-                path: 'patientId',
-                select:
-                    'fullName preferredName uhid phone gender dateOfBirth',
-            })
-            .populate({
-                path: 'doctorId',
-                select:
-                    'fullName specialization departmentName opdRoomNumber',
-            })
+            .select('status encounterId')
+            .session(session)
+            .lean()
             .exec();
 
-        if (!appointment) {
-            throw new NotFoundException(
-                'Appointment not found',
-            );
-        }
+          if (!existingAppointment) {
+            throw new NotFoundException('Appointment not found');
+          }
 
-        return appointment;
-    }
-
-    async markArrived(
-        id: string,
-    ): Promise<AppointmentDocument> {
-        if (!Types.ObjectId.isValid(id)) {
-            throw new BadRequestException(
-                'Invalid appointment ID',
-            );
-        }
-
-        const existingAppointment =
-            await this.appointmentModel
-                .findById(id)
-                .select('status startAt')
-                .exec();
-
-        if (!existingAppointment) {
-            throw new NotFoundException(
-                'Appointment not found',
-            );
-        }
-
-        if (existingAppointment.status !== 'booked') {
+          if (existingAppointment.encounterId) {
             throw new ConflictException(
-                `Only a booked appointment can be marked as arrived. Current status: ${existingAppointment.status}`,
+              'An encounter already exists for this appointment',
             );
+          }
+
+          throw new ConflictException(
+            `Only a checked-in appointment can start consultation. Current status: ${existingAppointment.status}`,
+          );
         }
 
-        const arrivedAt = new Date();
+        const consultationStartedAt = new Date();
 
-        const waitingStartedAt =
-            existingAppointment.startAt.getTime() >
-                arrivedAt.getTime()
-                ? existingAppointment.startAt
-                : arrivedAt;
+        const waitingStartedAt = appointment.waitingStartedAt;
 
-        const appointment =
-            await this.appointmentModel
-                .findOneAndUpdate(
-                    {
-                        _id: id,
-                        status: 'booked',
-                    },
-                    {
-                        $set: {
-                            status: 'arrived',
-                            arrivedAt,
-                            waitingStartedAt,
-                        },
-                        $push: {
-                            statusHistory: {
-                                fromStatus: 'booked',
-                                toStatus: 'arrived',
-                                changedAt: arrivedAt,
-                                reason: 'Patient arrived at hospital',
-                            },
-                        },
-                    },
-                    {
-                        new: true,
-                        runValidators: true,
-                    },
-                )
-                .populate({
-                    path: 'patientId',
-                    select:
-                        'fullName preferredName uhid phone gender dateOfBirth',
-                })
-                .populate({
-                    path: 'doctorId',
-                    select:
-                        'fullName specialization departmentName opdRoomNumber',
-                })
-                .exec();
+        const actualWaitingMinutes =
+          waitingStartedAt &&
+          waitingStartedAt.getTime() <= consultationStartedAt.getTime()
+            ? Math.max(
+                0,
+                Math.floor(
+                  (consultationStartedAt.getTime() -
+                    waitingStartedAt.getTime()) /
+                    60_000,
+                ),
+              )
+            : 0;
 
-        if (!appointment) {
-            throw new ConflictException(
-                'Appointment status changed during the arrival operation',
-            );
-        }
+        const encounterType =
+          appointment.consultationMode === 'in_person'
+            ? 'outpatient'
+            : 'teleconsultation';
 
-        return appointment;
-    }
-    async startEncounter(
-        id: string,
-    ): Promise<EncounterDocument> {
-        if (!Types.ObjectId.isValid(id)) {
-            throw new BadRequestException(
-                'Invalid appointment ID',
-            );
-        }
+        const [encounter] = await this.encounterModel.create(
+          [
+            {
+              encounterNumber: this.generateEncounterNumber(),
 
-        const session =
-            await this.connection.startSession();
+              appointmentId: appointment._id,
+              patientId: appointment.patientId,
+              doctorId: appointment.doctorId,
 
-        let createdEncounterId:
-            | Types.ObjectId
-            | undefined;
+              departmentId: appointment.departmentId,
 
-        try {
-            await session.withTransaction(async () => {
-                const appointment =
-                    await this.appointmentModel
-                        .findOne({
-                            _id: id,
-                            status: 'checked_in',
-                            encounterId: null,
-                        })
-                        .session(session)
-                        .exec();
+              hospitalId: appointment.hospitalId,
+              branchId: appointment.branchId,
 
-                if (!appointment) {
-                    const existingAppointment =
-                        await this.appointmentModel
-                            .findById(id)
-                            .select('status encounterId')
-                            .session(session)
-                            .lean()
-                            .exec();
+              encounterType,
+              status: 'in_progress',
 
-                    if (!existingAppointment) {
-                        throw new NotFoundException(
-                            'Appointment not found',
-                        );
-                    }
+              chiefComplaint: appointment.reasonForVisit,
 
-                    if (existingAppointment.encounterId) {
-                        throw new ConflictException(
-                            'An encounter already exists for this appointment',
-                        );
-                    }
+              startedAt: consultationStartedAt,
 
-                    throw new ConflictException(
-                        `Only a checked-in appointment can start consultation. Current status: ${existingAppointment.status}`,
-                    );
-                }
+              isLocked: false,
 
-                const consultationStartedAt = new Date();
-
-                const waitingStartedAt =
-                    appointment.waitingStartedAt;
-
-                const actualWaitingMinutes =
-                    waitingStartedAt &&
-                        waitingStartedAt.getTime() <=
-                        consultationStartedAt.getTime()
-                        ? Math.max(
-                            0,
-                            Math.floor(
-                                (consultationStartedAt.getTime() -
-                                    waitingStartedAt.getTime()) /
-                                60_000,
-                            ),
-                        )
-                        : 0;
-
-                const encounterType =
-                    appointment.consultationMode ===
-                        'in_person'
-                        ? 'outpatient'
-                        : 'teleconsultation';
-
-                const [encounter] =
-                    await this.encounterModel.create(
-                        [
-                            {
-                                encounterNumber:
-                                    this.generateEncounterNumber(),
-
-                                appointmentId: appointment._id,
-                                patientId: appointment.patientId,
-                                doctorId: appointment.doctorId,
-
-                                departmentId:
-                                    appointment.departmentId,
-
-                                hospitalId: appointment.hospitalId,
-                                branchId: appointment.branchId,
-
-                                encounterType,
-                                status: 'in_progress',
-
-                                chiefComplaint:
-                                    appointment.reasonForVisit,
-
-                                startedAt:
-                                    consultationStartedAt,
-
-                                isLocked: false,
-
-                                statusHistory: [
-                                    {
-                                        toStatus: 'in_progress',
-                                        changedAt:
-                                            consultationStartedAt,
-                                        reason:
-                                            'Doctor started consultation',
-                                    },
-                                ],
-                            },
-                        ],
-                        {
-                            session,
-                        },
-                    );
-
-                appointment.status = 'fulfilled';
-                appointment.encounterId = encounter._id;
-
-                appointment.consultationStartedAt =
-                    consultationStartedAt;
-
-                appointment.waitingEndedAt =
-                    consultationStartedAt;
-
-                appointment.actualWaitingMinutes =
-                    actualWaitingMinutes;
-
-                appointment.statusHistory.push({
-                    fromStatus: 'checked_in',
-                    toStatus: 'fulfilled',
-                    changedAt: consultationStartedAt,
-                    reason:
-                        'Clinical encounter started',
-                });
-
-                await appointment.save({
-                    session,
-                });
-
-                createdEncounterId = encounter._id;
-            });
-        } catch (error: unknown) {
-            const databaseError = error as {
-                code?: number;
-            };
-
-            if (databaseError.code === 11000) {
-                throw new ConflictException(
-                    'An encounter already exists for this appointment',
-                );
-            }
-
-            throw error;
-        } finally {
-            await session.endSession();
-        }
-
-        if (!createdEncounterId) {
-            throw new InternalServerErrorException(
-                'Encounter could not be created',
-            );
-        }
-
-        const encounter =
-            await this.encounterModel
-                .findById(createdEncounterId)
-                .populate({
-                    path: 'patientId',
-                    select:
-                        'fullName preferredName uhid phone gender dateOfBirth',
-                })
-                .populate({
-                    path: 'doctorId',
-                    select:
-                        'fullName specialization departmentName opdRoomNumber',
-                })
-                .populate({
-                    path: 'appointmentId',
-                    select:
-                        'appointmentNumber startAt endAt status actualWaitingMinutes',
-                })
-                .exec();
-
-        if (!encounter) {
-            throw new InternalServerErrorException(
-                'Created encounter could not be loaded',
-            );
-        }
-
-        return encounter;
-    }
-    private escapeRegex(value: string): string {
-        return value.replace(
-            /[.*+?^${}()|[\]\\]/g,
-            '\\$&',
+              statusHistory: [
+                {
+                  toStatus: 'in_progress',
+                  changedAt: consultationStartedAt,
+                  reason: 'Doctor started consultation',
+                },
+              ],
+            },
+          ],
+          {
+            session,
+          },
         );
+
+        appointment.status = 'fulfilled';
+        appointment.encounterId = encounter._id;
+
+        appointment.consultationStartedAt = consultationStartedAt;
+
+        appointment.waitingEndedAt = consultationStartedAt;
+
+        appointment.actualWaitingMinutes = actualWaitingMinutes;
+
+        appointment.statusHistory.push({
+          fromStatus: 'checked_in',
+          toStatus: 'fulfilled',
+          changedAt: consultationStartedAt,
+          reason: 'Clinical encounter started',
+        });
+
+        await appointment.save({
+          session,
+        });
+
+        createdEncounterId = encounter._id;
+      });
+    } catch (error: unknown) {
+      const databaseError = error as {
+        code?: number;
+      };
+
+      if (databaseError.code === 11000) {
+        throw new ConflictException(
+          'An encounter already exists for this appointment',
+        );
+      }
+
+      throw error;
+    } finally {
+      await session.endSession();
     }
 
-    private validateAppointmentTimes(
-        startAt: Date,
-        endAt: Date,
-    ): void {
-        if (
-            Number.isNaN(startAt.getTime()) ||
-            Number.isNaN(endAt.getTime())
-        ) {
-            throw new BadRequestException(
-                'Invalid appointment date or time',
-            );
-        }
-
-        if (startAt.getTime() <= Date.now()) {
-            throw new BadRequestException(
-                'Appointment start time must be in the future',
-            );
-        }
-
-        if (endAt.getTime() <= startAt.getTime()) {
-            throw new BadRequestException(
-                'Appointment end time must be after its start time',
-            );
-        }
-
-        const durationMinutes =
-            (endAt.getTime() - startAt.getTime()) / 60_000;
-
-        if (durationMinutes < 5 || durationMinutes > 480) {
-            throw new BadRequestException(
-                'Appointment duration must be between 5 and 480 minutes',
-            );
-        }
+    if (!createdEncounterId) {
+      throw new InternalServerErrorException('Encounter could not be created');
     }
 
-    private generateAppointmentNumber(): string {
-        const year = new Date().getUTCFullYear();
+    const encounter = await this.encounterModel
+      .findById(createdEncounterId)
+      .populate({
+        path: 'patientId',
+        select: 'fullName preferredName uhid phone gender dateOfBirth',
+      })
+      .populate({
+        path: 'doctorId',
+        select: 'fullName specialization departmentName opdRoomNumber',
+      })
+      .populate({
+        path: 'appointmentId',
+        select: 'appointmentNumber startAt endAt status actualWaitingMinutes',
+      })
+      .exec();
 
-        const uniquePart = randomUUID()
-            .replaceAll('-', '')
-            .slice(0, 10)
-            .toUpperCase();
-
-        return `APT-${year}-${uniquePart}`;
+    if (!encounter) {
+      throw new InternalServerErrorException(
+        'Created encounter could not be loaded',
+      );
     }
 
-    private generateEncounterNumber(): string {
-        const year = new Date().getUTCFullYear();
+    return encounter;
+  }
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
 
-        const uniquePart = randomUUID()
-            .replaceAll('-', '')
-            .slice(0, 10)
-            .toUpperCase();
-
-        return `ENC-${year}-${uniquePart}`;
+  private validateAppointmentTimes(startAt: Date, endAt: Date): void {
+    if (Number.isNaN(startAt.getTime()) || Number.isNaN(endAt.getTime())) {
+      throw new BadRequestException('Invalid appointment date or time');
     }
+
+    if (startAt.getTime() <= Date.now()) {
+      throw new BadRequestException(
+        'Appointment start time must be in the future',
+      );
+    }
+
+    if (endAt.getTime() <= startAt.getTime()) {
+      throw new BadRequestException(
+        'Appointment end time must be after its start time',
+      );
+    }
+
+    const durationMinutes = (endAt.getTime() - startAt.getTime()) / 60_000;
+
+    if (durationMinutes < 5 || durationMinutes > 480) {
+      throw new BadRequestException(
+        'Appointment duration must be between 5 and 480 minutes',
+      );
+    }
+  }
+
+  private generateAppointmentNumber(): string {
+    const year = new Date().getUTCFullYear();
+
+    const uniquePart = randomUUID()
+      .replaceAll('-', '')
+      .slice(0, 10)
+      .toUpperCase();
+
+    return `APT-${year}-${uniquePart}`;
+  }
+
+  private generateEncounterNumber(): string {
+    const year = new Date().getUTCFullYear();
+
+    const uniquePart = randomUUID()
+      .replaceAll('-', '')
+      .slice(0, 10)
+      .toUpperCase();
+
+    return `ENC-${year}-${uniquePart}`;
+  }
 }

@@ -15,7 +15,6 @@ export type PatientDocument = HydratedDocument<Patient>;
   versionKey: false,
 })
 export class Patient {
-
   @Prop({
     required: true,
     unique: true,
@@ -82,40 +81,28 @@ export class Patient {
   emergencyContact!: EmergencyContact;
 
   @Prop({
-  required: true,
-  enum: [
-    'opd',
-    'admitted',
-    'emergency',
-    'observation',
-    'discharged',
-  ],
-  default: 'opd',
-  index: true,
-})
-status!: string;
-
-@Prop({
-  required: true,
-  default: Date.now,
-  immutable: true,
-})
-registeredAt!: Date;
-
-@Prop({
-  required: true,
-  default: Date.now,
-})
-lastVisitAt!: Date;
+    required: true,
+    enum: ['opd', 'admitted', 'emergency', 'observation', 'discharged'],
+    default: 'opd',
+    index: true,
+  })
+  status!: string;
 
   @Prop({
-    enum: [
-      'single',
-      'married',
-      'widowed',
-      'divorced',
-      'other',
-    ],
+    required: true,
+    default: Date.now,
+    immutable: true,
+  })
+  registeredAt!: Date;
+
+  @Prop({
+    required: true,
+    default: Date.now,
+  })
+  lastVisitAt!: Date;
+
+  @Prop({
+    enum: ['single', 'married', 'widowed', 'divorced', 'other'],
   })
   maritalStatus?: string;
 
@@ -166,15 +153,9 @@ PatientSchema.set('toJSON', {
       ...returnedObject,
     };
 
-    Reflect.deleteProperty(
-      publicPatient,
-      'isDeleted',
-    );
+    Reflect.deleteProperty(publicPatient, 'isDeleted');
 
-    Reflect.deleteProperty(
-      publicPatient,
-      'deletedAt',
-    );
+    Reflect.deleteProperty(publicPatient, 'deletedAt');
 
     return publicPatient;
   },

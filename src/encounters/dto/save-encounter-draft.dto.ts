@@ -9,10 +9,7 @@ import {
 } from 'class-validator';
 
 import { ClinicalExaminationDto } from './clinical-examination.dto.js';
-import {
-  ClinicalReferralDto,
-  FollowUpPlanDto,
-} from './clinical-plan.dto.js';
+import { ClinicalReferralDto, FollowUpPlanDto } from './clinical-plan.dto.js';
 import { VitalSignsDto } from './vital-signs.dto.js';
 
 export class SaveEncounterDraftDto {

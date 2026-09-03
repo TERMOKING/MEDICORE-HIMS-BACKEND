@@ -1,8 +1,4 @@
-import {
-  Prop,
-  Schema,
-  SchemaFactory,
-} from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 import {
   ENCOUNTER_STATUSES,
@@ -45,7 +41,6 @@ export class EncounterStatusHistory {
   changedById?: string;
 }
 
-export const EncounterStatusHistorySchema =
-  SchemaFactory.createForClass(
-    EncounterStatusHistory,
-  );
+export const EncounterStatusHistorySchema = SchemaFactory.createForClass(
+  EncounterStatusHistory,
+);

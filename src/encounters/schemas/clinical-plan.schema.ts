@@ -1,13 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
-export const REFERRAL_PRIORITIES = [
-  'routine',
-  'urgent',
-  'stat',
-] as const;
+export const REFERRAL_PRIORITIES = ['routine', 'urgent', 'stat'] as const;
 
-export type ReferralPriority =
-  (typeof REFERRAL_PRIORITIES)[number];
+export type ReferralPriority = (typeof REFERRAL_PRIORITIES)[number];
 
 @Schema({
   _id: false,
@@ -73,5 +68,4 @@ export class FollowUpPlan {
   instructions?: string;
 }
 
-export const FollowUpPlanSchema =
-  SchemaFactory.createForClass(FollowUpPlan);
+export const FollowUpPlanSchema = SchemaFactory.createForClass(FollowUpPlan);

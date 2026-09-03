@@ -83,8 +83,7 @@ export class ListAppointmentsQueryDto {
 
   @IsOptional()
   @IsIn(APPOINTMENT_SORT_FIELDS)
-  sortBy: (typeof APPOINTMENT_SORT_FIELDS)[number] =
-    'startAt';
+  sortBy: (typeof APPOINTMENT_SORT_FIELDS)[number] = 'startAt';
 
   @IsOptional()
   @IsIn(SORT_ORDERS)
