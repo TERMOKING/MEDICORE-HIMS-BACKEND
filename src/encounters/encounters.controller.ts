@@ -1,10 +1,18 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
+  Patch,
 } from '@nestjs/common';
 
-import { EncountersService } from './encounters.service.js';
+import {
+  SaveEncounterDraftDto,
+} from './dto/save-encounter-draft.dto.js';
+
+import {
+  EncountersService,
+} from './encounters.service.js';
 
 @Controller('encounters')
 export class EncountersController {
@@ -12,6 +20,17 @@ export class EncountersController {
     private readonly encountersService:
       EncountersService,
   ) {}
+
+  @Patch(':id/draft')
+  saveDraft(
+    @Param('id') id: string,
+    @Body() dto: SaveEncounterDraftDto,
+  ) {
+    return this.encountersService.saveDraft(
+      id,
+      dto,
+    );
+  }
 
   @Get(':id')
   findOne(@Param('id') id: string) {

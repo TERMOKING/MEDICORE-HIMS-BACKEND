@@ -21,6 +21,23 @@ import {
   EncounterStatusHistorySchema,
 } from './encounter-status-history.schema.js';
 
+import {
+  VitalSigns,
+  VitalSignsSchema,
+} from './vital-signs.schema.js';
+
+import {
+  ClinicalExamination,
+  ClinicalExaminationSchema,
+} from './clinical-examination.schema.js';
+
+import {
+  ClinicalReferral,
+  ClinicalReferralSchema,
+  FollowUpPlan,
+  FollowUpPlanSchema,
+} from './clinical-plan.schema.js';
+
 export type EncounterDocument =
   HydratedDocument<Encounter>;
 
@@ -29,6 +46,95 @@ export type EncounterDocument =
   optimisticConcurrency: true,
 })
 export class Encounter {
+
+  @Prop({
+    trim: true,
+    maxlength: 5000,
+  })
+  historyOfPresentIllness?: string;
+
+  @Prop({
+    trim: true,
+    maxlength: 5000,
+  })
+  pastMedicalHistory?: string;
+
+  @Prop({
+    trim: true,
+    maxlength: 5000,
+  })
+  pastSurgicalHistory?: string;
+
+  @Prop({
+    trim: true,
+    maxlength: 5000,
+  })
+  familyHistory?: string;
+
+  @Prop({
+    trim: true,
+    maxlength: 5000,
+  })
+  socialHistory?: string;
+
+  @Prop({
+    type: [String],
+    default: undefined,
+  })
+  allergies?: string[];
+
+  @Prop({
+    type: [String],
+    default: undefined,
+  })
+  currentMedications?: string[];
+
+  @Prop({
+    type: VitalSignsSchema,
+    default: undefined,
+  })
+  vitals?: VitalSigns;
+
+  @Prop({
+    type: ClinicalExaminationSchema,
+    default: undefined,
+  })
+  examination?: ClinicalExamination;
+
+  @Prop({
+    trim: true,
+    maxlength: 10000,
+  })
+  clinicalAssessment?: string;
+
+  @Prop({
+    trim: true,
+    maxlength: 10000,
+  })
+  treatmentPlan?: string;
+
+  @Prop({
+    trim: true,
+    maxlength: 10000,
+  })
+  doctorNotes?: string;
+
+  @Prop({
+    type: [ClinicalReferralSchema],
+    default: undefined,
+  })
+  referrals?: ClinicalReferral[];
+
+  @Prop({
+    type: FollowUpPlanSchema,
+    default: undefined,
+  })
+  followUp?: FollowUpPlan;
+
+  @Prop({
+    type: Date,
+  })
+  lastSavedAt?: Date;
   @Prop({
     type: String,
     required: true,
